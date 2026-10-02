@@ -9,10 +9,10 @@
 | Web 框架 | FastAPI + Uvicorn |
 | 向量数据库 | Chroma（本地持久化存储） |
 | 嵌入模型 | BAAI/bge-large-zh-v1.5（开源中文嵌入模型） |
-| 大模型 API | 兼容 OpenAI 标准接口（DeepSeek / NVIDIA NIM） |
+| 大模型 API | 兼容 OpenAI 标准接口（DeepSeek） |
 | 文本处理 | LangChain RecursiveCharacterTextSplitter 递归分块 |
 | PDF 解析 | pypdf |
-| 前端 | 原生 HTML/CSS/JS，莫兰迪配色，Markdown 渲染 |
+| 前端 | HTML/CSS/JS |
 
 ## 系统架构
 ```mermaid
