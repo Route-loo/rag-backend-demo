@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG私有知识库问答系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft Yahei", sans-serif;
+        }
+        body {
+            background-color: #F5F1ED;
+            color: #3A3A3A;
+            padding: 40px 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .header h1 {
+            color: #6B807B;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .header p {
+            color: #8A8A8A;
+            font-size: 14px;
+        }
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 24px;
+        }
+        @media (max-width: 900px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 28px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+        }
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #6B807B;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .upload-area {
+            border: 2px dashed #C4D4D0;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background-color: #F8FAF9;
+        }
+        .upload-area:hover {
+            border-color: #88A09A;
+            background-color: #F0F5F4;
+        }
+        .upload-area p {
+            color: #88A09A;
+            margin-top: 12px;
+        }
+        #fileInput {
+            display: none;
+        }
+        .btn {
+            background-color: #88A09A;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 24px;
+            font-size: 15px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 16px;
+        }
+        .btn:hover {
+            background-color: #6B807B;
+        }
+        .status-tip {
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+        }
+        .success {
+            background-color: #EDF3F1;
+            color: #5A7A72;
+            display: block;
+        }
+        .question-input {
+            width: 100%;
+            min-height: 100px;
+            border: 1px solid #E0E0E0;
+            border-radius: 8px;
+            padding: 16px;
+            font-size: 15px;
+            resize: vertical;
+            outline: none;
+        }
+        .question-input:focus {
+            border-color: #88A09A;
+        }
+        .result-answer {
+            background-color: #F8FAF9;
+            border-radius: 8px;
+            padding: 20px;
+            line-height: 1.8;
+            margin-bottom: 16px;
+        }
+        .result-answer ul {
+            padding-left: 20px;
+            margin: 12px 0;
+        }
+        .result-answer li {
+            margin: 8px 0;
+        }
+        .result-answer strong {
+            color: #5A7A72;
+        }
+        details {
+            margin-top: 16px;
+        }
+        summary {
+            cursor: pointer;
+            color: #88A09A;
+            font-weight: 500;
+            margin-bottom: 12px;
+        }
+        .source-item {
+            background-color: #F8F5F0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #6A6A6A;
+        }
+        .source-item .source-name {
+            color: #B09A7A;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        .loading {
+            text-align: center;
+            color: #88A09A;
+            padding: 20px;
+            display: none;
+        }
+        .file-list-item {
+            background-color: #F8FAF9;
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        .file-name {
+            font-weight: 500;
+            color: #3A3A3A;
+            margin-bottom: 6px;
+        }
+        .file-info {
+            color: #88A09A;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>RAG 私有知识库问答系统</h1>
+        <p>上传PDF文档，基于你的私有知识库提问</p>
+    </div>
+
+    <div class="main-layout">
+        <div class="left-col">
+            <!-- 上传区 -->
+            <div class="card">
+                <div class="card-title">📄 第一步：上传知识库文档</div>
+                <div class="upload-area" id="uploadArea">
+                    <p>点击或拖拽PDF文件到这里上传</p>
+                    <input type="file" id="fileInput" accept=".pdf">
+                </div>
+                <button class="btn" id="uploadBtn" disabled>上传文档</button>
+                <div class="status-tip" id="uploadStatus"></div>
+            </div>
+
+            <!-- 提问区 -->
+            <div class="card">
+                <div class="card-title">💬 第二步：输入你的问题</div>
+                <textarea class="question-input" id="questionInput" placeholder="比如：RAG的主要优点有哪些？"></textarea>
+                <button class="btn" id="askBtn">提交提问</button>
+                <div class="loading" id="loading">正在检索知识库并生成回答...</div>
+            </div>
+
+            <!-- 结果区 -->
+            <div class="card" id="resultCard" style="display: none;">
+                <div class="card-title">✨ 回答结果</div>
+                <div class="result-answer" id="answerArea"></div>
+                <details>
+                    <summary>📚 查看引用的知识库原文</summary>
+                    <div id="sourceArea"></div>
+                </details>
+            </div>
+        </div>
+
+        <!-- 右侧已上传文件列表 -->
+        <div class="right-col">
+            <div class="card">
+                <div class="card-title">📁 已上传知识库文件</div>
+                <div id="fileListArea">
+                    <p style="color: #8A8A8A; font-size: 14px;">暂无上传文件</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const uploadArea = document.getElementById('uploadArea');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const uploadStatus = document.getElementById('uploadStatus');
+        const questionInput = document.getElementById('questionInput');
+        const askBtn = document.getElementById('askBtn');
+        const loading = document.getElementById('loading');
+        const resultCard = document.getElementById('resultCard');
+        const answerArea = document.getElementById('answerArea');
+        const sourceArea = document.getElementById('sourceArea');
+        const fileListArea = document.getElementById('fileListArea');
+
+        let uploadedFiles = [];
+        // 页面加载时自动拉取已上传文件列表
+        async function loadFileList() {
+            const res = await fetch('/files');
+            const data = await res.json();
+            uploadedFiles = data.files;
+            renderFileList();
+        }
+        // 页面加载就执行
+        loadFileList();
+
+        // 上传文件交互
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#88A09A';
+        });
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.style.borderColor = '#C4D4D0';
+        });
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#C4D4D0';
+            fileInput.files = e.dataTransfer.files;
+            fileInput.dispatchEvent(new Event('change'));
+        });
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                uploadBtn.disabled = false;
+                uploadArea.querySelector('p').textContent = `已选择：${fileInput.files[0].name}`;
+            }
+        });
+
+        // 渲染文件列表
+        function renderFileList() {
+            if (uploadedFiles.length === 0) {
+                fileListArea.innerHTML = '<p style="color: #8A8A8A; font-size: 14px;">暂无上传文件</p>';
+                return;
+            }
+            fileListArea.innerHTML = uploadedFiles.map((file, idx) => `
+                <div class="file-list-item">
+                    <div class="file-name">${idx+1}. ${file.name}</div>
+                    <div class="file-info">切分 ${file.chunks} 个文本块 ✓</div>
+                </div>
+            `).join('');
+        }
+
+        // 上传逻辑
+        uploadBtn.addEventListener('click', async () => {
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+            uploadStatus.className = 'status-tip loading';
+            uploadStatus.textContent = '正在上传并处理文档...';
+
+            const res = await fetch('/upload-pdf', { method: 'POST', body: formData });
+            const data = await res.json();
+
+            uploadStatus.className = 'status-tip success';
+            uploadStatus.textContent = data.message;
+
+            // 添加到文件列表
+            const chunks = parseInt(data.message.match(/切分为(\d+)个文本块/)[1]);
+            uploadedFiles.push({name: file.name, chunks: chunks});
+            renderFileList();
+
+            uploadBtn.disabled = true;
+        });
+
+        // 提问逻辑
+        askBtn.addEventListener('click', async () => {
+            const query = questionInput.value.trim();
+            if (!query) return alert('请输入问题');
+
+            loading.style.display = 'block';
+            resultCard.style.display = 'none';
+
+            const res = await fetch('/ask', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({query: query, top_k: 10})
+            });
+            const data = await res.json();
+
+            loading.style.display = 'none';
+            resultCard.style.display = 'block';
+            // 渲染Markdown格式
+            answerArea.innerHTML = marked.parse(data.answer);
+
+            sourceArea.innerHTML = '';
+            data.sources.forEach((src, idx) => {
+                const div = document.createElement('div');
+                div.className = 'source-item';
+                div.innerHTML = `<div class="source-name">来源：${src.source}</div>${src.text}`;
+                sourceArea.appendChild(div);
+            });
+        });
+    </script>
+</body>
+</html>
